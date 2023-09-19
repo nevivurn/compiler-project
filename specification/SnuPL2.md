@@ -10,9 +10,9 @@
     letter            = "A".."Z" | "a".."z" | "_".
     digit             = "0".."9".
     hexdigit          = digit | "A".."F" | "a".."f".
-    character         = LATIN1 char | "\n" | "\t" | "\"" | "\'" | "\\" | hexencoded.
+    character         = LATIN1_char | "\n" | "\t" | "\"" | "\'" | "\\" | hexencoded.
     hexedcoded        = "\x" hexdigit hexdigit.
-    char              = "'" character  | "\0" "'".
+    char              = "'" character  "'" | "'" "\0" "'".
     string            = '"' { character } '"'.
     
     ident             = letter { letter | digit }.
