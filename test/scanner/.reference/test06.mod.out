@@ -1,0 +1,7 @@
+scanning 'test06.mod'...
+  1:1: tCharConst (a)
+  2:1: tCharConst (\0)
+  3:1: tEOF
+
+
+Done.

@@ -1,0 +1,11 @@
+scanning 'test02.mod'...
+  1:1: tAssign
+  1:4: tPlusMinus (+)
+  1:6: tMulDiv (/)
+  2:1: tRelOp (<)
+  2:3: tRelOp (=)
+  2:5: tRelOp (>=)
+  3:1: tEOF
+
+
+Done.
