@@ -1,0 +1,8 @@
+scanning 'test05.mod'...
+  1:1: tNumber (0)
+  2:1: tNumber (1)
+  3:1: tNumber (99)
+  5:1: tEOF
+
+
+Done.

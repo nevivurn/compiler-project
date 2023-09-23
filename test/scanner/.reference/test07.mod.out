@@ -1,0 +1,7 @@
+scanning 'test07.mod'...
+  1:1: tStringConst ("hello, world!\n")
+  2:1: tStringConst ("this\tis\ta\ttab!")
+  3:1: tEOF
+
+
+Done.

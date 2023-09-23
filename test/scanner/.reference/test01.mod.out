@@ -1,0 +1,9 @@
+scanning 'test01.mod'...
+  1:1: tModule
+  2:1: tIf
+  2:4: tThen
+  2:9: tElse
+  4:1: tEOF
+
+
+Done.
