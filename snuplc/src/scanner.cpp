@@ -49,24 +49,57 @@ using namespace std;
 //--------------------------------------------------------------------------------------------------
 // token names
 //
-#define TOKEN_STRLEN 24
+#define TOKEN_STRLEN 44
 
 char ETokenName[][TOKEN_STRLEN] = {
-  "tDigit",                         ///< a digit
-  "tLetter",                        ///< a letter
-  "tPlusMinus",                     ///< '+' or '-'
   "tMulDiv",                        ///< '*' or '/'
+  "tPlusMinus",                     ///< '+' or '-'
   "tRelOp",                         ///< relational operator
+  "tAnd",                           ///< '&&'
+  "tOr",                            ///< '||'
+  "tNot",                           ///< '!'
   "tAssign",                        ///< assignment operator
+
   "tSemicolon",                     ///< a semicolon
+  "tColon",                         ///< a colon
   "tDot",                           ///< a dot
+  "tComma",                         ///< a comma
   "tLBrak",                         ///< a left bracket
   "tRBrak",                         ///< a right bracket
+  "tLParens",                       ///< a left parens
+  "tRParens",                       ///< a right parens
 
   "tEOF",                           ///< end of file
   "tIOError",                       ///< I/O error
+  "tInvCharConst",                  ///< invalid character constant
   "tInvStringConst",                ///< invalid string constant
+  "tInvNumber",                     ///< invalid number
   "tUndefined",                     ///< undefined
+
+  "tIdent",                         ///< identifer
+  "tBoolConst",                     ///< boolean constant (literal)
+  "tCharConst",                     ///< character constant (literal)
+  "tStringConst",                   ///< string constant (literal)
+  "tNumber",                        ///< number (literal)
+
+  "tModule",                        ///< module keyword
+  "tProcedure",                     ///< procedure keyword
+  "tFunction",                      ///< function keyword
+  "tExtern",                        ///< extern keyword
+  "tVar",                           ///< var keyword
+  "tConst",                         ///< const keyword
+  "tLongint",                       ///< longint keyword
+  "tInteger",                       ///< integer keyword
+  "tBoolean",                       ///< boolean keyword
+  "tChar",                          ///< char keyword
+  "tBegin",                         ///< begin keyword
+  "tEnd",                           ///< end keyword
+  "tIf",                            ///< if keyword
+  "tThen",                          ///< then keyword
+  "tElse",                          ///< else keyword
+  "tWhile",                         ///< while keyword
+  "tDo",                            ///< do keyword
+  "tReturn",                        ///< return keyword
 };
 
 
@@ -75,21 +108,54 @@ char ETokenName[][TOKEN_STRLEN] = {
 //
 
 char ETokenStr[][TOKEN_STRLEN] = {
-  "tDigit (%s)",                    ///< a digit
-  "tLetter (%s)",                   ///< a letter
-  "tPlusMinus (%s)",                ///< '+' or '-'
   "tMulDiv (%s)",                   ///< '*' or '/'
-  "tRelOp (%s)",                    ///< relational operator
+  "tPlusMinus (%s)",                ///< '+' or '-'
+  "tRelOp (%s)",                         ///< relational operator
+  "tAnd",                           ///< '&&'
+  "tOr",                            ///< '||'
+  "tNot",                           ///< '!'
   "tAssign",                        ///< assignment operator
+
   "tSemicolon",                     ///< a semicolon
+  "tColon",                         ///< a colon
   "tDot",                           ///< a dot
+  "tComma",                         ///< a comma
   "tLBrak",                         ///< a left bracket
   "tRBrak",                         ///< a right bracket
+  "tLParens",                       ///< a left parens
+  "tRParens",                       ///< a right parens
 
   "tEOF",                           ///< end of file
   "tIOError",                       ///< I/O error
+  "tInvCharConst (%s)",             ///< invalid character constant
   "tInvStringConst (%s)",           ///< invalid string constant
+  "tInvNumber (%s)",                ///< invalid number
   "tUndefined (%s)",                ///< undefined
+
+  "tIdent (%s)",                    ///< identifer
+  "tBoolConst (%s)",                ///< boolean constant (literal)
+  "tCharConst (%s)",                ///< character constant (literal)
+  "tStringConst (%s)",              ///< string constant (literal)
+  "tNumber (%s)",                   ///< number (literal)
+
+  "tModule",                        ///< module keyword
+  "tProcedure",                     ///< procedure keyword
+  "tFunction",                      ///< function keyword
+  "tExtern",                        ///< extern keyword
+  "tVar",                           ///< var keyword
+  "tConst",                         ///< const keyword
+  "tLongint",                       ///< longint keyword
+  "tInteger",                       ///< integer keyword
+  "tBoolean",                       ///< boolean keyword
+  "tChar",                          ///< char keyword
+  "tBegin",                         ///< begin keyword
+  "tEnd",                           ///< end keyword
+  "tIf",                            ///< if keyword
+  "tThen",                          ///< then keyword
+  "tElse",                          ///< else keyword
+  "tWhile",                         ///< while keyword
+  "tDo",                            ///< do keyword
+  "tReturn",                        ///< return keyword
 };
 
 
@@ -98,6 +164,17 @@ char ETokenStr[][TOKEN_STRLEN] = {
 //
 pair<const char*, EToken> Keywords[] =
 {
+    "module",
+    "procedure", "function", "extern",
+    "begin", "end",
+    "if", "then", "else",
+    "while", "do",
+    "return",
+    "var", "const"
+    "boolean", "char", "integer", "longint",
+    "true", "false",
+
+    //"void", // not actually a keyword allowed by the spec
 };
 
 
@@ -173,10 +250,10 @@ string CToken::escape(EToken type, const string text)
       case '\n': s += "\\n";  break;
       case '\t': s += "\\t";  break;
       case '\0': s += "\\0";  break;
-      case '\'': if (type == tCharConst) s += "\\'";  
+      case '\'': if (type == tCharConst) s += "\\'";
                  else s += c;
                  break;
-      case '\"': if (type == tStringConst) s += "\\\""; 
+      case '\"': if (type == tStringConst) s += "\\\"";
                  else s += c;
                  break;
       case '\\': s += "\\\\"; break;
@@ -200,7 +277,7 @@ string CToken::unescape(const string text)
 {
   // inverse of CToken::escape()
 
-  const char *t = text.c_str(); 
+  const char *t = text.c_str();
   char c;
   string s;
 
@@ -429,7 +506,7 @@ CScanner::ECharacter CScanner::GetCharacter(unsigned char &c, EToken mode)
     switch (PeekChar()) {
       case 'n':  c = '\n'; break;
       case 't':  c = '\t'; break;
-      case '0':  if (mode == tCharConst) c = '\0'; 
+      case '0':  if (mode == tCharConst) c = '\0';
                  else res = cInvEnc;
                  break;
       case '\'': c = '\''; break;

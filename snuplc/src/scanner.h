@@ -51,26 +51,54 @@ using namespace std;
 /// Each member of this enumeration represents a token in SnuPL
 ///
 enum EToken {
-  tDigit=0,                         ///< a digit
-  tLetter,                          ///< a letter
+  tMulDiv=0,                        ///< '*' or '/'
   tPlusMinus,                       ///< '+' or '-'
-  tMulDiv,                          ///< '*' or '/'
   tRelOp,                           ///< relational operator
+  tAnd,                             ///< '&&'
+  tOr,                              ///< '||'
+  tNot,                             ///< '!'
   tAssign,                          ///< assignment operator
+
   tSemicolon,                       ///< a semicolon
+  tColon,                           ///< a colon
   tDot,                             ///< a dot
+  tComma,                           ///< a comma
   tLBrak,                           ///< a left bracket
   tRBrak,                           ///< a right bracket
+  tLParens,                         ///< a left parens
+  tRParens,                         ///< a right parens
 
   tEOF,                             ///< end of file
   tIOError,                         ///< I/O error
+  tInvCharConst,                    ///< invalid character constant
   tInvStringConst,                  ///< invalid string constant
+  tInvNumber,                       ///< invalid number
   tUndefined,                       ///< undefined
 
-  // these are not needed for SnuPL/-1 but required by CToken::(un)escape
-  // (and you will need them when implementing SnuPL/2)
-  tCharConst,                       ///< character constant
-  tStringConst,                     ///< string constant
+  tIdent,                           ///< identifer
+  tBoolConst,                       ///< boolean constant (literal)
+  tCharConst,                       ///< character constant (literal)
+  tStringConst,                     ///< string constant (literal)
+  tNumber,                          ///< number (literal)
+
+  tModule,                          ///< module keyword
+  tProcedure,                       ///< procedure keyword
+  tFunction,                        ///< function keyword
+  tExtern,                          ///< extern keyword
+  tVar,                             ///< var keyword
+  tConst,                           ///< const keyword
+  tLongint,                         ///< longint keyword
+  tInteger,                         ///< integer keyword
+  tBoolean,                         ///< boolean keyword
+  tChar,                            ///< char keyword
+  tBegin,                           ///< begin keyword
+  tEnd,                             ///< end keyword
+  tIf,                              ///< if keyword
+  tThen,                            ///< then keyword
+  tElse,                            ///< else keyword
+  tWhile,                           ///< while keyword
+  tDo,                              ///< do keyword
+  tReturn,                          ///< return keyword
 };
 
 
