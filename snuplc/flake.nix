@@ -24,6 +24,8 @@
             runHook postInstall
           '';
 
+          hardeningDisable = [ "all" ];
+
           meta.mainProgram = "test_scanner";
         };
       }
