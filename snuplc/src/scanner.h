@@ -85,8 +85,8 @@ enum EToken {
   tProcedure,                       ///< procedure keyword
   tFunction,                        ///< function keyword
   tExtern,                          ///< extern keyword
-  tVar,                             ///< var keyword
-  tConst,                           ///< const keyword
+  tVarDecl,                             ///< var keyword
+  tConstDecl,                           ///< const keyword
   tLongint,                         ///< longint keyword
   tInteger,                         ///< integer keyword
   tBoolean,                         ///< boolean keyword

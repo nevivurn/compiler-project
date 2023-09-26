@@ -86,8 +86,8 @@ char ETokenName[][TOKEN_STRLEN] = {
   "tProcedure",                     ///< procedure keyword
   "tFunction",                      ///< function keyword
   "tExtern",                        ///< extern keyword
-  "tVar",                           ///< var keyword
-  "tConst",                         ///< const keyword
+  "tVarDecl",                       ///< var keyword
+  "tConstDecl",                     ///< const keyword
   "tLongint",                       ///< longint keyword
   "tInteger",                       ///< integer keyword
   "tBoolean",                       ///< boolean keyword
@@ -110,7 +110,7 @@ char ETokenName[][TOKEN_STRLEN] = {
 char ETokenStr[][TOKEN_STRLEN] = {
   "tMulDiv (%s)",                   ///< '*' or '/'
   "tPlusMinus (%s)",                ///< '+' or '-'
-  "tRelOp (%s)",                         ///< relational operator
+  "tRelOp (%s)",                    ///< relational operator
   "tAnd",                           ///< '&&'
   "tOr",                            ///< '||'
   "tNot",                           ///< '!'
@@ -135,15 +135,15 @@ char ETokenStr[][TOKEN_STRLEN] = {
   "tIdent (%s)",                    ///< identifer
   "tBoolConst (%s)",                ///< boolean constant (literal)
   "tCharConst (%s)",                ///< character constant (literal)
-  "tStringConst (%s)",              ///< string constant (literal)
+  "tStringConst (\"%s\")",          ///< string constant (literal)
   "tNumber (%s)",                   ///< number (literal)
 
   "tModule",                        ///< module keyword
   "tProcedure",                     ///< procedure keyword
   "tFunction",                      ///< function keyword
   "tExtern",                        ///< extern keyword
-  "tVar",                           ///< var keyword
-  "tConst",                         ///< const keyword
+  "tVarDecl",                       ///< var keyword
+  "tConstDecl",                     ///< const keyword
   "tLongint",                       ///< longint keyword
   "tInteger",                       ///< integer keyword
   "tBoolean",                       ///< boolean keyword
@@ -164,15 +164,26 @@ char ETokenStr[][TOKEN_STRLEN] = {
 //
 pair<const char*, EToken> Keywords[] =
 {
-    "module",
-    "procedure", "function", "extern",
-    "begin", "end",
-    "if", "then", "else",
-    "while", "do",
-    "return",
-    "var", "const"
-    "boolean", "char", "integer", "longint",
-    "true", "false",
+    {"module", tModule},
+    {"procedure", tProcedure},
+    {"function", tFunction},
+    {"extern", tExtern},
+    {"begin", tBegin},
+    {"end", tEnd},
+    {"if", tIf},
+    {"then", tThen},
+    {"else", tElse},
+    {"while", tWhile},
+    {"do", tDo},
+    {"return", tReturn},
+    {"var", tVarDecl},
+    {"const", tConstDecl},
+    {"boolean", tBoolean},
+    {"char", tChar},
+    {"integer", tInteger},
+    {"longint", tLongint},
+    {"true", tBoolConst},
+    {"false", tBoolConst},
 
     //"void", // not actually a keyword allowed by the spec
 };
@@ -411,6 +422,7 @@ CToken* CScanner::Scan()
   string tokval;
   char c;
 
+again:
   while (_in->good() && IsWhite(PeekChar())) GetChar();
 
   RecordStreamPosition();
@@ -422,12 +434,16 @@ CToken* CScanner::Scan()
   tokval = c;
   token = tUndefined;
 
+  // Skip over comments, restart scan afterwards
+  if (c == '/' && PeekChar() == '/') {
+    while (_in->good() && GetChar() != '\n');
+    goto again;
+  }
+
   switch (c) {
-    case ':':
-      if (PeekChar() == '=') {
-        tokval += GetChar();
-        token = tAssign;
-      }
+    case '*':
+    case '/':
+      token = tMulDiv;
       break;
 
     case '+':
@@ -435,43 +451,122 @@ CToken* CScanner::Scan()
       token = tPlusMinus;
       break;
 
-    case '*':
-    case '/':
-      token = tMulDiv;
-      break;
-
     case '=':
     case '#':
       token = tRelOp;
+      break;
+    case '<':
+    case '>':
+      token = tRelOp;
+      if (PeekChar() == '=')
+        tokval += GetChar();
+      break;
+
+    case '&':
+      if (PeekChar() != '&')
+        break;
+      tokval += GetChar();
+      token = tAnd;
+      break;
+    case '|':
+      if (PeekChar() != '|')
+        break;
+      tokval += GetChar();
+      token = tAnd;
+      break;
+    case '!':
+      token = tNot;
       break;
 
     case ';':
       token = tSemicolon;
       break;
-
+    case ':':
+      token = tColon;
+      if (PeekChar() == '=') {
+        tokval += GetChar();
+        token = tAssign;
+      }
+      break;
     case '.':
       token = tDot;
       break;
-
-    case '(':
+    case ',':
+      token = tComma;
+      break;
+    case '[':
       token = tLBrak;
       break;
-
-    case ')':
+    case ']':
       token = tRBrak;
+      break;
+    case '(':
+      token = tLParens;
+      break;
+    case ')':
+      token = tRParens;
+      break;
+
+    case '\'':
+      if (PeekChar() == '\'') {
+        // Immediately closed character is not allowed
+        token = tInvCharConst;
+        tokval += GetChar();
+        break;
+      } else if (GetCharacter((unsigned char &) c, tCharConst) != cOkay) {
+        // Unfortunately, we can't perfectly recreate the original token now
+        // that GetCharacter may or may not have consumed some characters.
+        token = tInvCharConst;
+        tokval += c;
+        break;
+      }
+      if (PeekChar() != '\'') {
+        token = tInvCharConst;
+        tokval += c;
+        break;
+      }
+      token = tCharConst;
+      tokval = c;
+      GetChar(); // consume the closing '
+      break;
+
+    case '"':
+      tokval = ""; // remove the opening "
+      while (PeekChar() != '"') {
+        if (GetCharacter((unsigned char &) c, tStringConst) != cOkay) {
+          token = tInvStringConst;
+          tokval += c;
+          break;
+        }
+        tokval += c;
+      }
+      if (PeekChar() != '"' || token == tInvStringConst) {
+        token = tInvStringConst;
+        tokval = "\"" + tokval; // re-add the opening " for the error message
+        break;
+      }
+      token = tStringConst;
+      GetChar(); // consume the closing "
       break;
 
     default:
-      if (('0' <= c) && (c <= '9')) {
-        token = tDigit;
-      } else
-      if (('a' <= c) && (c <= 'z')) {
-        token = tLetter;
-      } else {
-        tokval = "invalid character '";
-        tokval += c;
-        tokval += "'";
+      if (IsNum(c)) {
+        token = tNumber;
+        while (IsNum(PeekChar()))
+          tokval += GetChar();
+        break;
       }
+
+      if (IsAlpha(c)) {
+        token = tIdent;
+        while (IsIDChar(PeekChar()))
+          tokval += GetChar();
+        for (const auto& e : keywords)
+          if (tokval == e.first)
+            token = e.second;
+        break;
+      }
+
       break;
   }
 
