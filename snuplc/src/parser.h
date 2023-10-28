@@ -104,19 +104,39 @@ class CParser {
     /// @name methods for recursive-descent parsing
     /// @{
 
-    CAstModule*       module(void);
+    CAstModule*             module(void);
 
-    CAstStatement*    statSequence(CAstScope *s);
+    void                    varDeclarations(CAstScope *s);
+    void                    constDeclarations(CAstScope *s);
+    pair<vector<string>,const CType*> varDecl(CAstScope *s);
 
-    CAstStatAssign*   assignment(CAstScope *s);
+    CAstProcedure*          subroutineDecl(CAstScope *s);
+    CAstStatement*          subroutineBody(CAstScope *s);
+    CAstProcedure*          procedureDecl(CAstScope *s);
+    CAstProcedure*          functionDecl(CAstScope *s);
+    vector<CSymParam*>      formalParam(CAstScope *s);
 
-    CAstExpression*   expression(CAstScope *s);
-    CAstExpression*   simpleexpr(CAstScope *s);
-    CAstExpression*   term(CAstScope *s);
-    CAstExpression*   factor(CAstScope *s);
+    CAstStatement*          statSequence(CAstScope *s);
 
-    CAstDesignator*   letter(CAstScope *s);
-    CAstConstant*     number(void);
+    CAstStatAssign*         assignment(CAstScope *s, CAstDesignator *lhs);
+    CAstStatIf*             ifStatement(CAstScope *s);
+    CAstStatWhile*          whileStatement(CAstScope *s);
+    CAstStatReturn*         returnStatement(CAstScope *s);
+
+    CAstExpression*         expression(CAstScope *s);
+    CAstExpression*         simpleexpr(CAstScope *s);
+    CAstExpression*         term(CAstScope *s);
+    CAstExpression*         factor(CAstScope *s);
+
+    CAstExpression*         identOrCall(CAstScope *s);
+
+    CAstDesignator*         ident(CAstScope *s);
+    CAstConstant*           boolConst(void);
+    CAstConstant*           charConst(void);
+    CAstStringConstant*     stringConst(CAstScope *s);
+    CAstConstant*           number(void);
+
+    const CType*            cctype(CAstScope *s);
 
     /// @}
 

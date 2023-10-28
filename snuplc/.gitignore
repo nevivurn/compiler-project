@@ -2,5 +2,6 @@
 /doc/html
 /obj
 /test_scanner
+/test_parser
 /result
 /result-*

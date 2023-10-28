@@ -554,6 +554,8 @@ again:
         token = tNumber;
         while (IsNum(PeekChar()))
           tokval += GetChar();
+        if (PeekChar() == 'L') // longints
+          tokval += GetChar();
         break;
       }
 
