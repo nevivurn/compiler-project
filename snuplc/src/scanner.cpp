@@ -472,7 +472,7 @@ again:
       if (PeekChar() != '|')
         break;
       tokval += GetChar();
-      token = tAnd;
+      token = tOr;
       break;
     case '!':
       token = tNot;
