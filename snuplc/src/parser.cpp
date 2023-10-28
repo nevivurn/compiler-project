@@ -164,8 +164,8 @@ void CParser::InitSymbolTable(CSymtab *st)
   f->AddParam(new CSymParam(0, "v", tm->GetChar()));
   st->AddSymbol(f);
 
-  f = new CSymProc("WriteStr", tm->GetPointer(tm->GetArray(CArrayType::OPEN, tm->GetChar())), true);
-  f->AddParam(new CSymParam(0, "v", tm->GetChar()));
+  f = new CSymProc("WriteStr", tm->GetNull(), true);
+  f->AddParam(new CSymParam(0, "v", tm->GetPointer(tm->GetArray(CArrayType::OPEN, tm->GetChar()))));
   st->AddSymbol(f);
 
   f = new CSymProc("WriteLn", tm->GetNull(), true);
@@ -890,7 +890,7 @@ CAstConstant* CParser::number(void)
     long long v = strtoll(s.c_str(), NULL, 10);
     if (errno != 0) SetError(t, "invalid number.");
 
-    return new CAstConstant(t, CTypeManager::Get()->GetLongint(), v);
+    return new CAstConstant(t, CTypeManager::Get()->GetInteger(), v);
   }
 
 }
@@ -929,7 +929,7 @@ const CType* CParser::cctype(CAstScope *s)
       // TODO(nevi): evaluate
       simpleexpr(s);
     }
-    ct = CTypeManager::Get()->GetArray(0, ct);
+    ct = CTypeManager::Get()->GetArray(CArrayType::OPEN, ct); // TODO(nevi): use evaluated value
     Consume(tRBrak);
   }
 
