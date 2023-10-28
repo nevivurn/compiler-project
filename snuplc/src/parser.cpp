@@ -274,10 +274,10 @@ void CParser::constDeclarations(CAstScope *s)
   do {
     auto decls = varDecl(s);
     Consume(tAssign, &t);
-    expression(s); // TODO(nevi)
+    expression(s); // TODO(nevi): evaluate expressions
 
     for (string ident : decls.first) {
-      // TODO(nevi)
+      // TODO(nevi): use evaluted expressions
       CSymbol *sym = s->CreateConst(ident, decls.second, NULL);
       if (!st->AddSymbol(sym)) {
         SetError(t, "constant redeclared.");
@@ -471,17 +471,6 @@ vector<CSymParam*> CParser::formalParam(CAstScope *s)
 
 CAstStatement* CParser::statSequence(CAstScope *s)
 {
-  //
-  // statSequence ::= [ statement { ";" statement } ].
-  // statement ::= assignment.
-  //
-  // FIRST(statSequence) = { tLetter }
-  // FOLLOW(statSequence) = { tDot }
-  //
-  // FIRST(statement) = { tLetter }
-  // FOLLOW(statement) = { tSemicolon, tDot }
-  //
-
   // statement ::= assignment | subroutineCall | ifStatement
   //               | whileStatement | returnStatement.
 
@@ -518,7 +507,8 @@ CAstStatement* CParser::statSequence(CAstScope *s)
         } else if ((call = dynamic_cast<CAstFunctionCall*>(expr))) {
           st = new CAstStatCall(t, call);
         } else {
-          // TODO(nevi)
+          // Should never happen
+          assert(false);
         }
         break;
 

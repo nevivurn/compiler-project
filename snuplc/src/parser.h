@@ -104,38 +104,110 @@ class CParser {
     /// @name methods for recursive-descent parsing
     /// @{
 
+    /// @brief parse the top-level module
+    /// @retval parsed module
     CAstModule*             module(void);
 
+    /// @brief parse variable declarations, only if variables are actually declared
+    /// @param s scope, variable will be added to this scope
     void                    varDeclarations(CAstScope *s);
+    /// @brief parse const declarations, only if consts are actually declared
+    /// @param s scope, const will be added to this scope
     void                    constDeclarations(CAstScope *s);
+    /// @brief parse variable declarations
+    /// @param s scope
+    /// @retval list of identifier(s), type pairs
     pair<vector<string>,const CType*> varDecl(CAstScope *s);
 
+    /// @brief parse subroutine declaration
+    /// @param s scope, subroutine will be added to this scope
+    /// @retval parsed subroutine
     CAstProcedure*          subroutineDecl(CAstScope *s);
+    /// @brief parse subroutine body
+    /// @param s scope
+    /// @retval parsed subroutine body
     CAstStatement*          subroutineBody(CAstScope *s);
+    /// @brief parse procedure declaration
+    /// @param s scope, params are added to this scope
+    /// @retval parsed procedure declaration
     CAstProcedure*          procedureDecl(CAstScope *s);
+    /// @brief parse function declaration
+    /// @param s scope, params are added to this scope
+    /// @retval parsed function declaration
     CAstProcedure*          functionDecl(CAstScope *s);
+    /// @brief parse procedure parameters
+    /// @param s scope
+    /// @retval list of parameters
     vector<CSymParam*>      formalParam(CAstScope *s);
 
+    /// @brief parse statement sequence
+    /// @param s scope
+    /// @retval parsed subroutine body
     CAstStatement*          statSequence(CAstScope *s);
 
+    /// @brief parse assignment statement
+    /// @param s scope
+    /// @retval parsed assignment statement
     CAstStatAssign*         assignment(CAstScope *s, CAstDesignator *lhs);
+    /// @brief parse if statement
+    /// @param s scope
+    /// @retval parsed if statement
     CAstStatIf*             ifStatement(CAstScope *s);
+    /// @brief parse while statement
+    /// @param s scope
+    /// @retval parsed while statement
     CAstStatWhile*          whileStatement(CAstScope *s);
+    /// @brief parse return statement
+    /// @param s scope
+    /// @retval parsed return statement
     CAstStatReturn*         returnStatement(CAstScope *s);
 
+    /// @brief parse expression
+    /// @param s scope
+    /// @retval parsed expression
     CAstExpression*         expression(CAstScope *s);
+    /// @brief parse simple expression
+    /// @param s scope
+    /// @retval parsed simple expression
     CAstExpression*         simpleexpr(CAstScope *s);
+    /// @brief parse term
+    /// @param s scope
+    /// @retval parsed term
     CAstExpression*         term(CAstScope *s);
+    /// @brief parse factor
+    /// @param s scope
+    /// @retval parsed factor
     CAstExpression*         factor(CAstScope *s);
 
+    /// @brief parse either a qualified identifier or a function call
+    /// @param s scope
+    /// @retval parsed node, always either CAstDesignator* or CAstFunctionCall*
     CAstExpression*         identOrCall(CAstScope *s);
 
+    /// @brief parse an previously-declared identifier
+    /// @param s scope, identifier must be in scope
+    /// @retval parsed identifier
     CAstDesignator*         ident(CAstScope *s);
+    /// @brief parse boolean constant
+    /// @param s scope
+    /// @retval parsed boolean constant
     CAstConstant*           boolConst(void);
+    /// @brief parse character constant
+    /// @param s scope
+    /// @retval parsed character constant
     CAstConstant*           charConst(void);
+    /// @brief parse string constant
+    /// @param s scope, string data will be added to global scope
+    /// @retval parsed string constant
     CAstStringConstant*     stringConst(CAstScope *s);
+    /// @brief parse numeric constant
+    /// @param s scope
+    /// @retval parsed numeric constant
     CAstConstant*           number(void);
 
+    /// @brief parse type specification
+    /// @param s scope, required to evaluate array size expressions
+    /// @retval parsed type specification
     const CType*            cctype(CAstScope *s);
 
     /// @}
