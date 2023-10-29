@@ -170,9 +170,6 @@ void CParser::InitSymbolTable(CSymtab *st)
 
   f = new CSymProc("WriteLn", tm->GetNull(), true);
   st->AddSymbol(f);
-
-  // TODO (phase 2)
-  // add remaining predefined functions here
 }
 
 CAstModule* CParser::module(void)
