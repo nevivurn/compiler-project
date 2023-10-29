@@ -273,12 +273,15 @@ void CParser::constDeclarations(CAstScope *s)
 
   do {
     auto decls = varDecl(s);
-    Consume(tAssign, &t);
+    Consume(tRelOp, &t);
+    if (t.GetValue() != "=") {
+      SetError(t, "expected '='.");
+    }
     expression(s); // TODO(nevi): evaluate expressions
 
     for (string ident : decls.first) {
       // TODO(nevi): use evaluted expressions
-      CSymbol *sym = s->CreateConst(ident, decls.second, NULL);
+      CSymbol *sym = s->CreateConst(ident, decls.second, new CDataInitInteger(0));
       if (!st->AddSymbol(sym)) {
         SetError(t, "constant redeclared.");
         break;
@@ -827,7 +830,7 @@ CAstDesignator* CParser::ident(CAstScope *s)
 
   Consume(tIdent, &t);
 
-  const CSymbol *sym = st->FindSymbol(t.GetValue(), sLocal);
+  const CSymbol *sym = st->FindSymbol(t.GetValue(), sGlobal);
   if (sym == NULL) {
     SetError(t, "undeclared identifier");
   }
