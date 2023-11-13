@@ -868,7 +868,11 @@ const CSymProc* CAstFunctionCall::GetSymbol(void) const
 
 void CAstFunctionCall::AddArg(CAstExpression *arg)
 {
-  // TODO (phase 3)
+  // Pass arrays only as pointers
+  if (arg->GetType()->IsArray()) {
+    AddArg(new CAstSpecialOp(arg->GetToken(), opAddress, arg));
+    return;
+  }
 
   _arg.push_back(arg);
 }
@@ -1065,8 +1069,8 @@ void CAstConstant::FoldNeg(void)
   //
   // All constants in SnulPL/2 are positive numbers that can be folded (negated) by the '-' sign
   // of simpleexpr. To allow LLONG_MIN but still detect invalid positive longint constants with
-  // the value LLONG_MAX+1, we need to keep track of whether the value has been folded (negated) 
-  // or not. The value LLONG_MAX+1, when set via the constructor as a long long becomes LLONG_MIN, 
+  // the value LLONG_MAX+1, we need to keep track of whether the value has been folded (negated)
+  // or not. The value LLONG_MAX+1, when set via the constructor as a long long becomes LLONG_MIN,
   // but will not have the _negated flag set.
   //
   // Of course, this is nitpicking, but exactness comes at a price...

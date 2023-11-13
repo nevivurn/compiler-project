@@ -86,7 +86,16 @@ CScalarType::CScalarType(const string name)
 
 bool CScalarType::Match(const CType *t) const
 {
-  // TODO (phase 3)
+  if (IsNull() && t->IsNull())
+    return true;
+
+  if (IsBoolean() && t->IsBoolean())
+    return true;
+  if (IsChar() && t->IsChar())
+    return true;
+  if (IsInt() && t->IsInt())
+    return true;
+  // Pointers are handled separately
 
   return false;
 }
@@ -220,8 +229,6 @@ unsigned int CPointerType::GetAlign(void) const {
 
 bool CPointerType::Match(const CType *t) const
 {
-  // TODO (phase 3)
-
   // check whether t is a pointer
   if ((t == NULL) || !t->IsPointer()) return false;
 
@@ -232,13 +239,14 @@ bool CPointerType::Match(const CType *t) const
   // - this is a void pointer or
   // - the types are compatible with respect to Match()
 
-  return false;
+  if (GetBaseType()->IsNull())
+    return true;
+
+  return GetBaseType()->Match(pt->GetBaseType());
 }
 
 bool CPointerType::Compare(const CType *t) const
 {
-  // TODO (phase 3)
-
   // check whether t is a pointer
   if ((t == NULL) || !t->IsPointer()) return false;
 
@@ -249,7 +257,10 @@ bool CPointerType::Compare(const CType *t) const
   // - this is a void pointer or
   // - the types are compatible with respect to Compare()
 
-  return false;
+  if (GetBaseType()->IsNull())
+    return true;
+
+  return GetBaseType()->Compare(pt->GetBaseType());
 }
 
 ostream& CPointerType::print(ostream &out, int indent) const
@@ -316,8 +327,6 @@ unsigned int CArrayType::GetNDim(void) const
 
 bool CArrayType::Match(const CType *t) const
 {
-  // TODO (phase 3)
-
   // check whether t is an array
   if ((t == NULL) || !t->IsArray()) return false;
 
@@ -328,13 +337,16 @@ bool CArrayType::Match(const CType *t) const
   // - (this is an open array or the number of elements match) and
   // - the inner types are compatible with respect to Match()
 
+  if (!GetInnerType()->Match(at->GetInnerType()))
+    return false;
+  if (GetNElem() == CArrayType::OPEN || GetNElem() == at->GetNElem())
+    return true;
+
   return false;
 }
 
 bool CArrayType::Compare(const CType *t) const
 {
-  // TODO (phase 3)
-
   // check whether t is an array
   if ((t == NULL) || !t->IsArray()) return false;
 
@@ -344,6 +356,11 @@ bool CArrayType::Compare(const CType *t) const
   // comparison: match if
   // - the number of elements match and
   // - the inner types are compatible with respect to Compare()
+
+  if (!GetInnerType()->Compare(at->GetInnerType()))
+    return false;
+  if (GetNElem() == 0 || GetNElem() == at->GetNElem())
+    return true;
 
   return false;
 }

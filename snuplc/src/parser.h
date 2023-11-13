@@ -206,9 +206,13 @@ class CParser {
     CAstConstant*           number(void);
 
     /// @brief parse type specification
-    /// @param s scope, required to evaluate array size expressions
+    /// @param s scope
     /// @retval parsed type specification
     const CType*            cctype(CAstScope *s);
+    /// @brief parse array index part of type specification
+    /// @param s scope, required to evaluate array size expressions
+    /// @retval parsed type specification
+    const CType*            arrayIndex(CAstScope *s, const CType *inner);
 
     /// @}
 

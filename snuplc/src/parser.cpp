@@ -273,12 +273,25 @@ void CParser::constDeclarations(CAstScope *s)
     Consume(tRelOp, &t);
     if (t.GetValue() != "=") {
       SetError(t, "expected '='.");
+      break;
     }
-    expression(s); // TODO(nevi): evaluate expressions
+
+    const CType *ct = decls.second;
+    CAstExpression *expr = expression(s);
+
+    if (!expr->TypeCheck(&t, NULL) || !ct->Match(expr->GetType())) {
+      SetError(t, "constant expression type mismatch. " + expr->GetType()->GetName());
+      break;
+    }
+
+    const CDataInitializer *init = expr->Evaluate();
+    if (!init) {
+      SetError(t, "cannot evaluate constant expression.");
+      break;
+    }
 
     for (string ident : decls.first) {
-      // TODO(nevi): use evaluted expressions
-      CSymbol *sym = s->CreateConst(ident, decls.second, new CDataInitInteger(0));
+      CSymbol *sym = s->CreateConst(ident, ct, init);
       if (!st->AddSymbol(sym)) {
         SetError(t, "constant redeclared.");
         break;
@@ -355,7 +368,9 @@ CAstProcedure* CParser::subroutineDecl(CAstScope *s)
   }
 
   Consume(tSemicolon);
-  st->AddSymbol(n->GetSymbol());
+  if (!st->AddSymbol(n->GetSymbol())) {
+    SetError(t, "subroutine redeclared");
+  }
 
   return n;
 }
@@ -453,9 +468,14 @@ vector<CSymParam*> CParser::formalParam(CAstScope *s)
   do {
     auto decls = varDecl(s);
 
+    const CType *ty = decls.second;
+    // Accept arrays as pointers
+    if (ty->IsArray())
+      ty = CTypeManager::Get()->GetPointer(ty);
+
     int index = 0;
     for (string ident : decls.first) {
-      params.push_back(new CSymParam(index++, ident, decls.second));
+      params.push_back(new CSymParam(index++, ident, ty));
     }
 
     if (_scanner->Peek().GetType() != tSemicolon) {
@@ -608,7 +628,15 @@ CAstStatReturn* CParser::returnStatement(CAstScope *s)
   CToken t;
   Consume(tReturn, &t);
 
-  return new CAstStatReturn(t, s, expression(s));
+  switch (_scanner->Peek().GetType()) {
+    case tSemicolon:
+    case tEnd:
+    case tElse:
+      // Empty return
+      return new CAstStatReturn(t, s, NULL);
+    default:
+      return new CAstStatReturn(t, s, expression(s));
+  }
 }
 
 CAstExpression* CParser::expression(CAstScope* s)
@@ -782,6 +810,7 @@ CAstExpression* CParser::identOrCall(CAstScope *s)
       Consume(tRBrak);
       tt = _scanner->Peek().GetType();
     }
+    nn->IndicesComplete();
     return nn;
   } else if (tt == tLParens) {
     CToken t;
@@ -874,54 +903,98 @@ CAstConstant* CParser::number(void)
     long long v = strtoll(s.c_str(), NULL, 10);
     if (errno != 0) SetError(t, "invalid number.");
 
+    if (v < LONG_MIN || v > LONG_MAX)
+      SetError(t, "longint out of range.");
+
     return new CAstConstant(t, CTypeManager::Get()->GetLongint(), v);
   } else {
     errno = 0;
     long long v = strtoll(s.c_str(), NULL, 10);
     if (errno != 0) SetError(t, "invalid number.");
 
+    // TODO(nevi): proper limit checks, or at least make sure these are correct
+    if (v < INT_MIN || v > INT_MAX)
+      SetError(t, "int out of range.");
+
     return new CAstConstant(t, CTypeManager::Get()->GetInteger(), v);
   }
-
 }
 
 const CType* CParser::cctype(CAstScope *s)
 {
+  CTypeManager *tm = CTypeManager::Get();
   CToken t;
 
   const CType *ct;
   switch (_scanner->Peek().GetType()) {
     case tBoolean:
       Consume(tBoolean, &t);
-      ct = CTypeManager::Get()->GetBool();
+      ct = tm->GetBool();
       break;
     case tChar:
       Consume(tChar, &t);
-      ct = CTypeManager::Get()->GetChar();
+      ct = tm->GetChar();
       break;
     case tInteger:
       Consume(tInteger, &t);
-      ct = CTypeManager::Get()->GetInteger();
+      ct = tm->GetInteger();
       break;
     case tLongint:
       Consume(tLongint, &t);
-      ct = CTypeManager::Get()->GetLongint();
+      ct = tm->GetLongint();
       break;
     default:
       SetError(_scanner->Peek(), "expected type.");
       break;
   }
 
+  if (_scanner->Peek().GetType() == tLBrak)
+    ct = arrayIndex(s, ct);
+
+  return ct;
+}
+
+const CType* CParser::arrayIndex(CAstScope *s, const CType *type)
+{
+  CTypeManager *tm = CTypeManager::Get();
+  CToken t;
+  vector<unsigned int> indices;
+
   while (_scanner->Peek().GetType() == tLBrak) {
     Consume(tLBrak, &t);
 
+    int nelem = CArrayType::OPEN;
     if (_scanner->Peek().GetType() != tRBrak) {
-      // TODO(nevi): evaluate
-      simpleexpr(s);
+      CAstExpression *expr = simpleexpr(s);
+
+      if (!expr->TypeCheck(&t, NULL) || !tm->GetInteger()->Match(expr->GetType())) {
+        SetError(t, "expected integer array size expression.");
+        break;
+      }
+
+      const CDataInitializer *init = expr->Evaluate();
+      if (!init) {
+        SetError(t, "expected constant array size.");
+        break;
+      }
+
+      if (expr->GetType()->IsInteger()) {
+        nelem = ((const CDataInitInteger *) init)->GetData();
+      } else {
+        nelem = ((const CDataInitLongint *) init)->GetData();
+      }
+
+      if (nelem < 0) {
+        SetError(t, "expected non-negative array size.");
+        break;
+      }
     }
-    ct = CTypeManager::Get()->GetArray(CArrayType::OPEN, ct); // TODO(nevi): use evaluated value
+
+    indices.push_back(nelem);
     Consume(tRBrak);
   }
 
-  return ct;
+  for (int i = indices.size()-1; i >= 0; i--)
+    type = tm->GetArray(indices[i], type);
+  return type;
 }

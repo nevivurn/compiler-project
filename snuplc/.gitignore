@@ -3,5 +3,6 @@
 /obj
 /test_scanner
 /test_parser
+/test_semanal
 /result
 /result-*
