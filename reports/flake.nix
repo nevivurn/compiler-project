@@ -23,7 +23,7 @@
 
           installPhase = ''
             runHook preInstall
-            install -Dm755 -t $out *.pdf
+            install -Dm644 -t $out *.pdf
             runHook postInstall
           '';
         };
