@@ -10,21 +10,23 @@
       {
         devShells.default = pkgs.mkShell {
           inputsFrom = [ self.packages.${system}.default ];
-          nativeBuildInputs = with pkgs; [ man-pages ];
+          nativeBuildInputs = with pkgs; [ man-pages valgrind ];
           hardeningDisable = [ "all" ];
         };
 
         packages.default = pkgs.stdenv.mkDerivation {
           name = "snuplc";
-          src = ./.;
+          src = ./snuplc;
           nativeBuildInputs = with pkgs; [ doxygen graphviz ];
 
           outputs = [ "out" "doc" ];
           buildFlags = [ "all" "doc" ];
 
+          enableParallelBuilding = true;
+
           installPhase = ''
             runHook preInstall
-            install -Dm755 test_scanner $out/bin/test_scanner
+            install -Dm755 -t $out/bin/ test_*
             mkdir -p $doc
             cp -r doc/html $doc/html
             runHook postInstall
@@ -35,8 +37,8 @@
           meta.mainProgram = "test_scanner";
         };
 
-        packages.ref-semanal = pkgs.gcc13Stdenv.mkDerivation {
-          name = "snuplc-ref-semanal";
+        packages.ref = pkgs.gcc13Stdenv.mkDerivation {
+          name = "snuplc-ref";
           src = ./snuplc/reference;
 
           nativeBuildInputs = with pkgs; [ autoPatchelfHook ];
@@ -44,7 +46,7 @@
 
           installPhase = ''
             runHook preInstall
-            install -Dm755 -t $out/bin/ test_semanal*
+            install -Dm755 -t $out/bin/ test_*
             runHook postInstall
           '';
         };
