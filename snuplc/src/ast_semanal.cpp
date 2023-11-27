@@ -662,7 +662,10 @@ bool CAstArrayDesignator::TypeCheck(CToken *t, string *msg)
 {
   assert(_done);
 
-  const CType *dt = GetSymbol()->GetDataType();
+  const CType *ddt = GetSymbol()->GetDataType();
+  // Allow up to one pointer deref
+  const CType *dt = ddt->IsPointer() ? ((const CPointerType *) ddt)->GetBaseType() : ddt;
+
   CTypeManager *tm = CTypeManager::Get();
 
   // - typecheck index expressions
@@ -692,7 +695,10 @@ bool CAstArrayDesignator::TypeCheck(CToken *t, string *msg)
 
 const CType* CAstArrayDesignator::GetType(void) const
 {
-  const CType *dt = GetSymbol()->GetDataType();
+  const CType *ddt = GetSymbol()->GetDataType();
+  // Allow up to one pointer deref
+  const CType *dt = ddt->IsPointer() ? ((const CPointerType *) ddt)->GetBaseType() : ddt;
+
 
   for (size_t i = 0; i < CAstArrayDesignator::GetNIndices(); i++) {
     const CArrayType *at = dynamic_cast<const CArrayType*>(dt);

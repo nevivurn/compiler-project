@@ -725,4 +725,3 @@ ostream& operator<<(ostream &out, const CCodeBlock *t)
 {
   return t->print(out);
 }
-
