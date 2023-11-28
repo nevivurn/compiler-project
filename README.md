@@ -20,7 +20,7 @@ The project is split into the following phases:
 | 2     | [Syntax Analysis](assignments/2.Syntax.Analysis.md)                          | Wednesday, September 27 | Tuesday, October 17, 23:59     |
 | 3     | [Semantic Analysis](assignments/3.Semantic.Analysis.md)                      | Wednesday, November 1   | Monday, November 13, 23:59     |
 | 4     | [Intermediate Code Generation](assignments/4.Intermediate.Code.Generation.md)| Wednesday, November 15  | Tuesday, November 28, 23:59    |
-| 5     | Code Generation                                                              | Wednesday, November 29  | Tuesday, December 12, 23:59    |
+| 5     | [Code Generation](assignments/5.Code.Generation.md)                          | Wednesday, November 29  | Tuesday, December 12, 23:59    |
 | 6     | Project Report                                                               | -                       | Tuesday, December 12, 23:59    |
 
 

@@ -4,6 +4,7 @@
 /// @section changelog Change Log
 /// 2020/07/31 Bernhard Egger created
 /// 2020/09/27 Bernhard Egger removed non-generic targets & backends for assignment 2
+/// 2020/11/22 Bernhard Egger added AMD64 backend as default target for assignment 5
 ///
 /// @section license_section License
 /// Copyright (c) 2020-2023, Computer Systems and Platforms Laboratory, SNU
@@ -33,6 +34,7 @@
 
 #include "target.h"
 #include "environment.h"
+#include "backendAMD64.h"
 using namespace std;
 
 
@@ -75,5 +77,14 @@ void RegisterTargets(CEnvironment *e)
   assert(e != NULL);
 
   e->AddTarget(new CTarget32());
-  e->AddTarget(new CTarget64(), true);
+  e->AddTarget(new CTarget64());
+  e->AddTarget(new CTargetAMD64(), true);
+}
+
+//--------------------------------------------------------------------------------------------------
+// CTargetAMD64
+//
+CBackend* CTargetAMD64::GetBackend(ostream &out) const
+{
+  return new CBackendAMD64(out);
 }
