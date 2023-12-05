@@ -4,6 +4,7 @@
 /// @section changelog Change Log
 /// 2020/07/31 Bernhard Egger created
 /// 2020/09/27 Bernhard Egger removed non-generic targets & backends for assignment 2
+/// 2020/11/22 Bernhard Egger added AMD64 backend as default target for assignment 5
 ///
 /// @section license_section License
 /// Copyright (c) 2020-2023, Computer Systems and Platforms Laboratory, SNU
@@ -143,6 +144,30 @@ class CTarget64 : public CTarget {
     /// @{
 
     CTarget64(void) : CTarget("64-bit", "Generic 64-bit Target", 8) { };
+
+    /// @}
+};
+
+//--------------------------------------------------------------------------------------------------
+/// @brief AMD64 target
+///
+/// AMD64 (x86_64) target architecture
+///
+class CTargetAMD64 : public CTarget {
+
+  public:
+    /// @name constructor/destructor
+    /// @{
+
+    CTargetAMD64(void) : CTarget("x86-64", "AMD64 (x86-64)", 8) { };
+
+    /// @}
+
+    /// @name property querying
+    /// @{
+
+    /// @brief return an instance of the target backend
+    virtual CBackend* GetBackend(ostream &out) const;
 
     /// @}
 };

@@ -20,23 +20,25 @@ CCFLAGS=-std=c++11 -Wall -g -O0
 DEPFLAGS=-MMD -MP -MT $@ -MF $(DEP_DIR)/$*.d
 
 # sources for various targets
-BACKEND=backend.cpp
+BACKEND=backend.cpp \
+	backendAMD64.cpp
 BASE=environment.cpp \
-		 target.cpp \
-		 $(BACKEND)
+	target.cpp \
+	$(BACKEND)
 SCANNER=scanner.cpp
 PARSER=parser.cpp \
-			 type.cpp \
-			 symtab.cpp \
-			 data.cpp \
-			 ast.cpp ast_semanal.cpp ast_tacgen.cpp \
-			 ir.cpp
+	type.cpp \
+	symtab.cpp \
+	data.cpp \
+	ast.cpp ast_semanal.cpp ast_tacgen.cpp \
+	ir.cpp
 SOURCES=$(BASE) $(SCANNER) $(PARSER)
 
 # object files of various targets
-DEPS=$(SOURCES:.cpp=$(DEP_DIR)/.d)
-OBJ_SCANNER=$(patsubst %.cpp,$(OBJ_DIR)/%.o,$(BASE) $(SCANNER))
-OBJ_PARSER=$(patsubst %.cpp,$(OBJ_DIR)/%.o,$(BASE) $(SCANNER) $(PARSER))
+DEPS=$(SOURCES:%.cpp=$(DEP_DIR)/%.d)
+OBJ_SCANNER=$(patsubst %.cpp,$(OBJ_DIR)/%.o, $(SCANNER))
+OBJ_PARSER=$(patsubst %.cpp,$(OBJ_DIR)/%.o, $(BASE) $(SCANNER) $(PARSER))
+OBJ_SNUPLC=$(patsubst %.cpp,$(OBJ_DIR)/%.o, $(BASE) $(SCANNER) $(PARSER) $(IR))
 
 # Doxygen configuration file
 DOXYFILE=doc/Doxyfile
@@ -46,7 +48,9 @@ DOXYFILE=doc/Doxyfile
 #
 .PHONY: doc clean mrproper
 
-all: test_ir
+all: snuplc
+
+reallyall: test_scanner test_parser test_semanal test_ir snuplc
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(DEP_DIR) $(OBJ_DIR)
 	$(CC) $(CCFLAGS) $(DEPFLAGS) -c -o $@ $<
@@ -72,6 +76,9 @@ test_semanal: $(OBJ_DIR)/test_semanal.o $(OBJ_PARSER)
 test_ir: $(OBJ_DIR)/test_ir.o $(OBJ_PARSER)
 	$(CC) $(CCFLAGS) -o $@ $(OBJ_DIR)/test_ir.o $(OBJ_PARSER)
 
+snuplc: $(OBJ_DIR)/snuplc.o $(OBJ_SNUPLC)
+	$(CC) $(CCFLAGS) -o $@ $(OBJ_DIR)/snuplc.o $(OBJ_SNUPLC)
+
 doc:
 	doxygen $(DOXYFILE)
 
@@ -79,5 +86,5 @@ clean:
 	rm -rf $(OBJ_DIR) $(DEP_DIR)
 
 mrproper: clean
-	rm -rf doc/html test_scanner test_parser test_semanal test_ir
+	rm -rf doc/html test_scanner test_parser test_semanal test_ir snuplc
 
