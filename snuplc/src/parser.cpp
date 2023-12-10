@@ -359,6 +359,11 @@ CAstProcedure* CParser::subroutineDecl(CAstScope *s)
     return n;
   }
 
+  // Add symbol before parsing body to allow recursive calls
+  if (!st->AddSymbol(n->GetSymbol())) {
+    SetError(t, "subroutine redeclared");
+  }
+
   CAstStatement *body = subroutineBody(n);
   n->SetStatementSequence(body);
 
@@ -368,9 +373,6 @@ CAstProcedure* CParser::subroutineDecl(CAstScope *s)
   }
 
   Consume(tSemicolon);
-  if (!st->AddSymbol(n->GetSymbol())) {
-    SetError(t, "subroutine redeclared");
-  }
 
   return n;
 }
