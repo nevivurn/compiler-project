@@ -26,7 +26,7 @@
 
           installPhase = ''
             runHook preInstall
-            install -Dm755 -t $out/bin/ test_*
+            install -Dm755 snuplc $out/bin/snuplc
             mkdir -p $doc
             cp -r doc/html $doc/html
             runHook postInstall
@@ -46,7 +46,7 @@
 
           installPhase = ''
             runHook preInstall
-            install -Dm755 -t $out/bin/ test_*
+            install -Dm755 -t $out/bin/ test_* snuplc
             runHook postInstall
           '';
         };
