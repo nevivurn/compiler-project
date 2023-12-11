@@ -363,6 +363,29 @@ CTacAddr* CAstFunctionCall::ToTac(CCodeBlock *cb,
 //
 CTacAddr* CAstDesignator::ToTac(CCodeBlock *cb)
 {
+  if (GetSymbol()->GetSymbolType() == ESymbolType::stConstant) {
+    if (GetType()->IsArray()) {
+      // string, but I have no idea how to recover the CAstConstant cleanly
+      // TODO(nevi): figure out the correct way to do this
+      auto *data = (const CDataInitString *) Evaluate();
+      CAstStringConstant *str = new CAstStringConstant(GetToken(), data->GetData(), GetScope());
+      return str->ToTac(cb);
+    } else {
+      auto *typ = GetType();
+      auto *data = Evaluate();
+      long long int val = 0;
+      if (typ->IsBoolean())
+        val = ((const CDataInitBoolean *) data)->GetData();
+      else if (typ->IsChar())
+        val = ((const CDataInitChar *) data)->GetData();
+      else if (typ->IsLongint())
+        val = ((const CDataInitInteger *) data)->GetData();
+      else if (typ->IsInt())
+        val = ((const CDataInitLongint *) data)->GetData();
+      CAstConstant *c = new CAstConstant(GetToken(), typ, val);
+      return c->ToTac(cb);
+    }
+  }
   return new CTacName(GetSymbol());
 }
 

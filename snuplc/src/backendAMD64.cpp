@@ -117,9 +117,10 @@ void CBackendAMD64::EmitCode(void)
        << endl;
 
   // emit scope & subscopes
+  // main scope must be emitted first so subscopes can use globals
+  EmitScope(_m);
   for (auto scope : _m->GetSubscopes())
     EmitScope(scope);
-  EmitScope(_m);
 
   _out << _ind << "# end of text section" << endl
        << _ind << "#-----------------------------------------" << endl
@@ -248,7 +249,7 @@ void CBackendAMD64::EmitScope(CScope *scope)
   _out << endl;
 
   // 4. emit function epilogue
-  _out << _ind << Label("exit") << ":" << endl;
+  _out << Label("exit") << ":" << endl;
   _out << _ind << "# epilogue" << endl;
   EmitInstruction("leave", "", "");
   EmitInstruction("popq", "%r15", "");
@@ -584,8 +585,8 @@ string CBackendAMD64::Operand(const CTac *op)
     return Imm(c->GetValue());
   } else if (auto *r = dynamic_cast<const CTacReference *>(op)) {
     // reference
-    EmitInstruction("movq", Location(r->GetSymbol(), 0), Reg(EAMD64Register::r15, 8));
-    return "(%" + Reg(EAMD64Register::r15, 8) + ")";
+    EmitInstruction("movq", Location(r->GetSymbol(), 0) + ", " + Reg(EAMD64Register::r15, 8));
+    return "(" + Reg(EAMD64Register::r15, 8) + ")";
   } else if (auto *n = dynamic_cast<const CTacName *>(op)) {
     // named (temporary) variables
     return Location(n->GetSymbol(), 0);
@@ -653,9 +654,10 @@ int CBackendAMD64::OperandSize(CTac *t) const
   }
 
   if (auto *tref = dynamic_cast<CTacReference *>(t)) {
-    // arrays, and only arrays are CTacReference
-    // we want the size of a single element
-    auto *aty = (const CArrayType *) tref->GetDerefSymbol()->GetDataType();
+    auto *nty = tref->GetDerefSymbol()->GetDataType(); // may be either *arr (if param) or arr (if var)
+    auto *aty = dynamic_cast<const CArrayType *>(nty)
+      ? (const CArrayType *) nty
+      : (const CArrayType *) ((const CPointerType *) nty)->GetBaseType();
     return aty->GetBaseType()->GetDataSize();
   }
   CTacAddr *addr = (CTacAddr *) t;
@@ -739,8 +741,8 @@ void CBackendAMD64::ComputeStackOffsets(CScope *scope, StackFrame &paf)
   // so it is more convenient to handle it after argbuild is known
   for (auto sym : scope->GetSymbolTable()->GetSymbols()) {
     switch (sym->GetSymbolType()) {
-      case stGlobal: // fallthrough
       case stConstant:
+      case stGlobal: // fallthrough
         // globals are rip relative
         sym->SetLocation(new CStorage(EStorageLocation::slLabel, sym->GetName(), 0));
         break;
