@@ -137,13 +137,24 @@ CTacAddr* CAstStatIf::ToTac(CCodeBlock *cb, CTacLabel *next)
   GetCondition()->ToTac(cb, ltrue, lfalse);
 
   cb->AddInstr(ltrue);
-  GetIfBody()->ToTac(cb, next);
+  CAstStatement *ifbody = GetIfBody();
+  while (ifbody) {
+    CTacLabel *next = cb->CreateLabel();
+    ifbody->ToTac(cb, next);
+    cb->AddInstr(next);
+    ifbody = ifbody->GetNext();
+  }
+  cb->AddInstr(new CTacInstr(opGoto, next));
 
   cb->AddInstr(lfalse);
-  if (GetElseBody() != NULL)
-    GetElseBody()->ToTac(cb, next);
-  else
-    cb->AddInstr(new CTacInstr(opGoto, next));
+  CAstStatement *elsebody = GetElseBody();
+  while (elsebody) {
+    CTacLabel *next = cb->CreateLabel();
+    elsebody->ToTac(cb, next);
+    cb->AddInstr(next);
+    elsebody = elsebody->GetNext();
+  }
+  cb->AddInstr(new CTacInstr(opGoto, next));
 
   return NULL;
 }
@@ -160,7 +171,15 @@ CTacAddr* CAstStatWhile::ToTac(CCodeBlock *cb, CTacLabel *next)
   cb->AddInstr(lcond);
   GetCondition()->ToTac(cb, lbody, next);
   cb->AddInstr(lbody);
-  GetBody()->ToTac(cb, lcond);
+
+  CAstStatement *body = GetBody();
+  while (body) {
+    CTacLabel *next = cb->CreateLabel();
+    body->ToTac(cb, next);
+    cb->AddInstr(next);
+    body = body->GetNext();
+  }
+  cb->AddInstr(new CTacInstr(opGoto, lcond));
 
   return NULL;
 }
