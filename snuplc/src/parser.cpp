@@ -467,6 +467,7 @@ vector<CSymParam*> CParser::formalParam(CAstScope *s)
     return params;
   }
 
+  int index = 0;
   do {
     auto decls = varDecl(s);
 
@@ -475,7 +476,6 @@ vector<CSymParam*> CParser::formalParam(CAstScope *s)
     if (ty->IsArray())
       ty = CTypeManager::Get()->GetPointer(ty);
 
-    int index = 0;
     for (string ident : decls.first) {
       params.push_back(new CSymParam(index++, ident, ty));
     }
