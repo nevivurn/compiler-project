@@ -117,7 +117,9 @@ void CBackendAMD64::EmitCode(void)
        << endl;
 
   // emit scope & subscopes
-  // TODO
+  for (auto scope : _m->GetSubscopes())
+    EmitScope(scope);
+  EmitScope(_m);
 
   _out << _ind << "# end of text section" << endl
        << _ind << "#-----------------------------------------" << endl
@@ -143,7 +145,7 @@ void CBackendAMD64::EmitData(void)
 void CBackendAMD64::EmitFooter(void)
 {
   _out << _ind << "# identifier and stack options" << endl
-       << _ind << ".ident \"SnuPL/2\" (Fall 2023)" << endl
+       << _ind << ".ident \"SnuPL/2 (Fall 2023)\"" << endl
        << _ind << ".section .note.GNU-stack,\"\",@progbits" << endl
        << endl
        << _ind << ".end" << endl
@@ -179,14 +181,12 @@ void CBackendAMD64::EmitScope(CScope *scope)
   _out << _ind << "# scope " << scope->GetName() << endl
        << label << ":" << endl;
 
-  //
-  // TODO
-  //
+  SetScope(scope);
 
   // 1. compute the size of locals
   StackFrame paf = {
     .return_address   = 8,        // 1 * 8
-    .saved_registers  = 0*8,      // number of saved registers * 8
+    .saved_registers  = 6*8,      // number of saved registers * 8
     .padding          = 0,
     .saved_parameters = 0,
     .local_variables  = 0,
@@ -203,9 +203,60 @@ void CBackendAMD64::EmitScope(CScope *scope)
   //    - set argument build & local variable area to 0
   //    - initialize local arrays (EmitLocalData)
 
+  _out << _ind << "# prologue" << endl;
+  EmitInstruction("pushq", "%rbx", "save callee saved registers");
+  EmitInstruction("pushq", "%r12", "");
+  EmitInstruction("pushq", "%r13", "");
+  EmitInstruction("pushq", "%r14", "");
+  EmitInstruction("pushq", "%r15", "");
+  EmitInstruction("pushq", "%rbp", "");
+  // weird-looking, but this lets us access locals as rsp+offset, params as rbp+fixed+offset
+  // plus we get to completely ignore alignment and padding
+  EmitInstruction("movq", "%rsp, %rbp", "");
+  EmitInstruction("subq", "$" + to_string(paf.size-paf.saved_registers-paf.return_address) + ", %rsp", "");
+  EmitInstruction("andq", "$-16, %rsp", "align to 16 bytes"); // reference compiler seems to do it?
+
+  if (auto *sym = dynamic_cast<CSymProc *>(scope->GetDeclaration())) {
+    string cmt = "store parameters to stack";
+    switch (sym->GetNParams()) {
+      default: // fallthrough
+      case 6: Store(new CTacName(sym->GetParam(5)), EAMD64Register::r9, cmt); cmt = "";
+      case 5: Store(new CTacName(sym->GetParam(4)), EAMD64Register::r8, cmt); cmt = "";
+      case 4: Store(new CTacName(sym->GetParam(3)), EAMD64Register::rCX, cmt); cmt = "";
+      case 3: Store(new CTacName(sym->GetParam(2)), EAMD64Register::rDX, cmt); cmt = "";
+      case 2: Store(new CTacName(sym->GetParam(1)), EAMD64Register::rSI, cmt); cmt = "";
+      case 1: Store(new CTacName(sym->GetParam(0)), EAMD64Register::rDI, cmt); cmt = "";
+      case 0: break;
+    }
+  }
+
+  if (int size = paf.local_variables + paf.argument_build) {
+    // Zero out all local variables, assume 8-byte alignment
+    EmitInstruction("cld", "", "zero out local variables");
+    EmitInstruction("xorq", "%rax, %rax", "");
+    EmitInstruction("movl", "$" + to_string(size/8) + ", %ecx", "");
+    EmitInstruction("movq", "%rsp, %rdi", "");
+    EmitInstruction("rep", "stosq", "");
+  }
+
+  EmitLocalData(scope);
+  _out << endl;
+
   // 3. emit code
+  _out << _ind << "# function body" << endl;
+  EmitCodeBlock(scope->GetCodeBlock(), paf);
+  _out << endl;
 
   // 4. emit function epilogue
+  _out << _ind << Label("exit") << ":" << endl;
+  _out << _ind << "# epilogue" << endl;
+  EmitInstruction("leave", "", "");
+  EmitInstruction("popq", "%r15", "");
+  EmitInstruction("popq", "%r14", "");
+  EmitInstruction("popq", "%r13", "");
+  EmitInstruction("popq", "%r12", "");
+  EmitInstruction("popq", "%rbx", "");
+  EmitInstruction("ret", "", "");
 
   _out << endl;
 }
@@ -277,7 +328,7 @@ void CBackendAMD64::EmitGlobalData(CScope *scope)
           // i.e., we have to pad 4 bytes if the array dimension is even
 
           _out << setw(4) << " "
-            << ".skip " << setw(4) << 4 
+            << ".skip " << setw(4) << 4
             << setw(22) << " " << "#   pad"
             << endl;
         }
@@ -312,10 +363,24 @@ void CBackendAMD64::EmitLocalData(CScope *scope)
 {
   assert(scope != NULL);
 
-  //
-  // TODO
   // emit the variables for the current scope
   //
+
+  CSymtab *st = scope->GetSymbolTable();
+  for (auto *sym : st->GetSymbols()) {
+    // non-local variables don't need to be initialized
+    if (sym->GetSymbolType() != stLocal) continue;
+    // non-arrays have already been zeroed
+    if (!sym->GetDataType()->IsArray()) continue;
+
+    const CArrayType *aty = (const CArrayType *) sym->GetDataType();
+    unsigned int ndim = aty->GetNDim();
+    EmitInstruction("movl", "$" + to_string(ndim) + ", " + Location(sym), "");
+    for (unsigned int i = 0; i < ndim; i++) {
+      EmitInstruction("movl", "$" + to_string(aty->GetNElem()) + ", " + Location(sym, 4*(i+1)), "");
+      aty = (const CArrayType *) aty->GetInnerType();
+    }
+  }
 }
 
 void CBackendAMD64::EmitCodeBlock(CCodeBlock *cb, StackFrame &paf)
@@ -341,24 +406,106 @@ void CBackendAMD64::EmitInstruction(CTacInstr *i, StackFrame &paf)
   switch (op) {
     // binary operators
     // dst = src1 op src2
+    case opAdd:
+      Load(EAMD64Register::rAX, i->GetSrc(1), cmt.str());
+      Load(EAMD64Register::rBX, i->GetSrc(2), "");
+      EmitInstruction("addq", "%rbx, %rax", "");
+      Store(i->GetDest(), EAMD64Register::rAX, "");
+      break;
+    case opSub:
+      Load(EAMD64Register::rAX, i->GetSrc(1), cmt.str());
+      Load(EAMD64Register::rBX, i->GetSrc(2), "");
+      EmitInstruction("subq", "%rbx, %rax", "");
+      Store(i->GetDest(), EAMD64Register::rAX, "");
+      break;
+    case opMul:
+      Load(EAMD64Register::rAX, i->GetSrc(1), cmt.str());
+      Load(EAMD64Register::rBX, i->GetSrc(2), "");
+      EmitInstruction("imulq", "%rbx", "");
+      Store(i->GetDest(), EAMD64Register::rAX, "");
+      break;
+    case opDiv:
+      Load(EAMD64Register::rAX, i->GetSrc(1), cmt.str());
+      Load(EAMD64Register::rBX, i->GetSrc(2), "");
+      EmitInstruction("cdq", "", "");
+      EmitInstruction("idivq", "%rbx", "");
+      Store(i->GetDest(), EAMD64Register::rAX, "");
+      break;
+    // opAnd and opOr never appear in TAC
 
     // unary operators
     // dst = src1
+    // opNot never appears in TAC
+    case opNeg:
+      Load(EAMD64Register::rAX, i->GetSrc(1), cmt.str());
+      EmitInstruction("negq", "%rax", "");
+      Store(i->GetDest(), EAMD64Register::rAX, "");
+      break;
+    case opPos:
+      // notably, bug on reference compiler
+      // fallthrough to opAssign
 
     // memory operations
     // dst = src1
+    case opAssign:
+      Load(EAMD64Register::rAX, i->GetSrc(1), cmt.str());
+      Store(i->GetDest(), EAMD64Register::rAX, "");
+      break;
 
     // pointer operations
     // dst = &src1
     // dst = *src1
+    // only opAddress ever appears in TAC
+    case opAddress:
+      EmitInstruction("leaq", Operand(i->GetSrc(1)) + ", %rax", cmt.str());
+      Store(i->GetDest(), EAMD64Register::rAX, "");
+      break;
 
     // unconditional branching
     // goto dst
+    case opGoto:
+      EmitInstruction("jmp", Operand(i->GetDest()), cmt.str());
+      break;
 
     // conditional branching
     // if src1 relOp src2 then goto dst
+    case opEqual:
+    case opNotEqual:
+    case opLessThan:
+    case opLessEqual:
+    case opBiggerThan:
+    case opBiggerEqual:
+      Load(EAMD64Register::rAX, i->GetSrc(1), cmt.str());
+      Load(EAMD64Register::rBX, i->GetSrc(2), "");
+      EmitInstruction("cmp", "%rbx, %rax", "");
+      EmitInstruction("j" + Condition(op), Operand(i->GetDest()), "");
+      break;
 
     // function call-related operations
+    case opCall:
+      EmitInstruction("call", Operand(i->GetSrc(1)), cmt.str());
+      if (i->GetDest())
+        Store(i->GetDest(), EAMD64Register::rAX, "");
+      break;
+    case opReturn:
+      if (i->GetSrc(1))
+        Load(EAMD64Register::rAX, i->GetSrc(1), cmt.str());
+      EmitInstruction("jmp", Label("exit"), "");
+      break;
+    case opParam:
+      switch (long long int index = ((CTacConst *) i->GetDest())->GetValue()) {
+        case 0: Load(EAMD64Register::rDI, i->GetSrc(1), cmt.str()); break;
+        case 1: Load(EAMD64Register::rSI, i->GetSrc(1), cmt.str()); break;
+        case 2: Load(EAMD64Register::rDX, i->GetSrc(1), cmt.str()); break;
+        case 3: Load(EAMD64Register::rCX, i->GetSrc(1), cmt.str()); break;
+        case 4: Load(EAMD64Register::r8, i->GetSrc(1), cmt.str()); break;
+        case 5: Load(EAMD64Register::r9, i->GetSrc(1), cmt.str()); break;
+        default:
+          Load(EAMD64Register::rAX, i->GetSrc(1), cmt.str());
+          Store(paf.argbuild[index-6], EAMD64Register::rAX, "");
+          break;
+      }
+      break;
 
     // special
     case opLabel:
@@ -429,10 +576,23 @@ void CBackendAMD64::Store(CTac *dst, EAMD64Register src, string comment)
 
 string CBackendAMD64::Operand(const CTac *op)
 {
-  //
-  // TODO
   // return a string representing op
   // Hint: references (op of type CTacReference) require special care
+
+  if (auto *c = dynamic_cast<const CTacConst *>(op)) {
+    // const
+    return Imm(c->GetValue());
+  } else if (auto *r = dynamic_cast<const CTacReference *>(op)) {
+    // reference
+    EmitInstruction("movq", Location(r->GetSymbol(), 0), Reg(EAMD64Register::r15, 8));
+    return "(%" + Reg(EAMD64Register::r15, 8) + ")";
+  } else if (auto *n = dynamic_cast<const CTacName *>(op)) {
+    // named (temporary) variables
+    return Location(n->GetSymbol(), 0);
+  } else if (auto *l = dynamic_cast<const CTacLabel *>(op)) {
+    // label, mainly for jumps
+    return Label(l->GetLabel());
+  }
 
   return "?";
 }
@@ -444,7 +604,7 @@ string CBackendAMD64::Imm(int value) const
   return o.str();
 }
 
-string CBackendAMD64::Label(const CTacLabel* label) const
+string CBackendAMD64::Label(const CTacLabel *label) const
 {
   CScope *cs = GetScope();
   assert(cs != NULL);
@@ -464,55 +624,94 @@ string CBackendAMD64::Label(string label) const
 
 string CBackendAMD64::Condition(EOperation cond) const
 {
-  //
-  // TODO
   // return condition postfix in dependence of cond
   //
+  switch (cond) {
+    case opEqual: return "e";
+    case opNotEqual: return "ne";
+    case opLessThan: return "l";
+    case opLessEqual: return "le";
+    case opBiggerThan: return "g";
+    case opBiggerEqual: return "ge";
+    default:
+      assert(false);
+  }
+
   return "?";
 }
 
 int CBackendAMD64::OperandSize(CTac *t) const
 {
-  // TODO
   // compute the size for operand t of type CTacName
   // Hint: also here references (incl. references to pointers) and arrays need special care.
   //       Compare your output to that of the reference implementation if you are unsure.
   //
-  return 0;
+
+  if (dynamic_cast<CTacConst *>(t)) {
+    // pretend all consts are 8 bytes
+    return 8;
+  }
+
+  if (auto *tref = dynamic_cast<CTacReference *>(t)) {
+    // arrays, and only arrays are CTacReference
+    // we want the size of a single element
+    auto *aty = (const CArrayType *) tref->GetDerefSymbol()->GetDataType();
+    return aty->GetBaseType()->GetDataSize();
+  }
+  CTacAddr *addr = (CTacAddr *) t;
+  return addr->GetType()->GetSize();
 }
 
 string CBackendAMD64::Location(const CSymbol *s, long long ofs)
 {
-  //
-  // TODO
   // return a string denoting the location of a symbol
   //
-  return "?";
+  const CStorage *st = s->GetLocation();
+  switch (st->GetLocation()) {
+    case slUndefined:
+      assert(false); // should not happen
+    case slMemoryAbs:
+      return st->GetBase();
+    case slMemoryRel:
+      if (st->GetOffset() + ofs)
+        return to_string(st->GetOffset() + ofs) + "(%" + st->GetBase() + ")";
+      return "(%" + st->GetBase() + ")";
+    case slRegister:
+      return "%" + st->GetBase();
+    case slLabel:
+      return st->GetBase() + "(%rip)";
+  }
+
+  assert(false); // should not happen
 }
 
 string CBackendAMD64::Reg(EAMD64Register reg, int size)
 {
-  //
-  // TODO
   // return the full register name for base register @a base and a given data @a size
   // Hint: this is a simple lookup into EAMD64RegisterName
-  //
-  return "%?";
+  auto names = EAMD64RegisterName[reg];
+  string rn;
+  switch (size) {
+    case 1: rn = names.n8; break;
+    case 2: rn = names.n16; break;
+    case 4: rn = names.n32; break;
+    case 8: rn = names.n64; break;
+    default: assert(false); // should not happen
+  }
+  return "%" + rn;
 }
 
 void CBackendAMD64::ComputeStackOffsets(CScope *scope, StackFrame &paf)
 {
-  //
-  // TODO
   // compute the location of local variables, temporaries and arguments on the stack
   //
   // Hint: this is the most complicated part of this phase. The reference implementation is
   // ~270 lines long (~100 of which are comments or empty lines)
   //
   // Study the details of the AMD64 PAF, then decide whether you are going to use base pointer-based
-  // or stack pointer-based addressing. Depending on that, addressing of variables is relative to 
+  // or stack pointer-based addressing. Depending on that, addressing of variables is relative to
   // the base pointer (rbp) or the stack pointer (rsp).
-  // Iterate over all variables in this scope (locals, parameters), compute their locations, then 
+  // Iterate over all variables in this scope (locals, parameters), compute their locations, then
   // store that location in the symbol (CSymbol->SetLocation).
   //
   // The outputs of this function are
@@ -520,4 +719,87 @@ void CBackendAMD64::ComputeStackOffsets(CScope *scope, StackFrame &paf)
   // - CStorage() class instances assigned to all local variables and parameters that indicate
   //   the location of the variable/parameter on the stack
   //
+
+  // Stack layout:
+  // param[...8]
+  // param[7]
+  // --- previous stack frame ---
+  // ret
+  // saved registers (6), rbp last <- rbp
+  // param[1]
+  // param[2...]
+  // [padding]
+  // local variables
+  // arg[...8]
+  // arg[7]
+
+  unsigned int maxParams = 0;
+
+  // Handle all non-local symbols. locals "float" between low params and argbuild,
+  // so it is more convenient to handle it after argbuild is known
+  for (auto sym : scope->GetSymbolTable()->GetSymbols()) {
+    switch (sym->GetSymbolType()) {
+      case stGlobal: // fallthrough
+      case stConstant:
+        // globals are rip relative
+        sym->SetLocation(new CStorage(EStorageLocation::slLabel, sym->GetName(), 0));
+        break;
+      case stLocal:
+        // locals are rsp relative, ordered in whatever order we encounter them
+        sym->SetLocation(new CStorage(EStorageLocation::slMemoryRel, "rsp", paf.local_variables));
+        paf.local_variables += sym->GetDataType()->GetSize();
+        paf.local_variables += (8-paf.local_variables%8)%8; // just align everything to 8 bytes
+        break;
+      case stParam: {
+        int index = ((CSymParam *) sym)->GetIndex() + 1; // 0->1-indexed
+        if (index <= 6) {
+          // unspilled params are rbp - offset
+          sym->SetLocation(new CStorage(EStorageLocation::slMemoryRel, "rbp", -index*8));
+          paf.saved_parameters += 8; // all parameters are padded to 8 bytes
+        } else {
+          // spilled params are rbp + (7*8) + offset
+          // conveniently, index starts at 7
+          sym->SetLocation(new CStorage(EStorageLocation::slMemoryRel, "rbp", index*8));
+        }
+        break;
+      }
+      case stProcedure: {
+        maxParams = max(maxParams, ((CSymProc *) sym)->GetNParams());
+        // procedures are absolute
+        sym->SetLocation(new CStorage(EStorageLocation::slMemoryAbs, sym->GetName(), 0));
+        break;
+      }
+      case stReserved:
+        // reserved (main) is invalid
+        break;
+    }
+  }
+
+  // compute argument_build. argbuild is initialized later, to avoid offsetting locals
+  if (maxParams > 6)
+    paf.argument_build = (maxParams - 6) * 8;
+
+  // handle locals
+  for (auto sym : scope->GetSymbolTable()->GetSymbols()) {
+    if (sym->GetSymbolType() != stLocal) continue;
+
+    // locals are rsp relative, ordered in whatever order we encounter them
+    sym->SetLocation(new CStorage(EStorageLocation::slMemoryRel, "rsp", paf.argument_build+paf.local_variables));
+    paf.local_variables += sym->GetDataType()->GetSize();
+    paf.local_variables += (8-paf.local_variables%8)%8; // just align everything to 8 bytes
+  }
+
+  // finally, initialize argbuild
+  if (maxParams > 6) {
+    paf.argbuild = vector<CTacTemp *>(maxParams - 6);
+    for (unsigned int i = 0; i < maxParams-6; i++) {
+      // make it 8 bytes large, opParam handles proper sizing
+      paf.argbuild[i] = scope->CreateTemp(CTypeManager::Get()->GetLongint(), "ab", new CStorage(EStorageLocation::slMemoryRel, "rsp", i*8));
+    }
+  }
+
+  paf.size =
+    paf.return_address + paf.saved_registers +
+    paf.padding + paf.saved_parameters +
+    paf.local_variables + paf.argument_build;
 }
