@@ -365,11 +365,17 @@ CTacAddr* CAstDesignator::ToTac(CCodeBlock *cb)
 {
   if (GetSymbol()->GetSymbolType() == ESymbolType::stConstant) {
     if (GetType()->IsArray()) {
-      // string, but I have no idea how to recover the CAstConstant cleanly
-      // TODO(nevi): figure out the correct way to do this
+      // string, but unsure how to do this properly
+      // for now, scan the st for the symbol matching the string exactly
       auto *data = (const CDataInitString *) Evaluate();
-      CAstStringConstant *str = new CAstStringConstant(GetToken(), data->GetData(), GetScope());
-      return str->ToTac(cb);
+      string str = data->GetData();
+      CSymtab *st = GetSymbol()->GetSymbolTable();
+      for (auto sym : st->GetSymbols()) {
+        if (sym->GetSymbolType() != ESymbolType::stGlobal)
+          continue;
+        if (sym->GetData() == data)
+          return new CTacName(sym);
+      }
     } else {
       auto *typ = GetType();
       auto *data = Evaluate();
