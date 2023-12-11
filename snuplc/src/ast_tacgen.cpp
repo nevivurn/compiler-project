@@ -118,7 +118,9 @@ CTacAddr* CAstStatCall::ToTac(CCodeBlock *cb, CTacLabel *next)
 //
 CTacAddr* CAstStatReturn::ToTac(CCodeBlock *cb, CTacLabel *next)
 {
-  CTacAddr *val = GetExpression()->ToTac(cb);
+  CTacAddr *val = NULL;
+  if (GetExpression())
+     val = GetExpression()->ToTac(cb);
   cb->AddInstr(new CTacInstr(opReturn, NULL, val));
   return NULL;
 }
@@ -309,8 +311,7 @@ CTacAddr* CAstFunctionCall::ToTac(CCodeBlock *cb)
     params.push_back(GetArg(i)->ToTac(cb));
 
   for (unsigned int i = 0; i < GetNArgs(); i++) {
-    CAstExpression *arg = GetArg(GetNArgs()-i-1);
-    CTacConst *index = new CTacConst(GetNArgs()-i-1, arg->GetType());
+    CTacConst *index = new CTacConst(GetNArgs()-i-1, CTypeManager::Get()->GetInteger());
     cb->AddInstr(new CTacInstr(opParam, index, params[GetNArgs()-i-1]));
   }
 
@@ -409,7 +410,7 @@ CTacAddr* CAstArrayDesignator::ToTac(CCodeBlock *cb)
     array, offset);
 
   CTacName *ref = (CTacName *) val->ToTac(cb);
-  return new CTacReference(ref->GetSymbol(), NULL); // TODO(nevi): figure out what the second arg is for
+  return new CTacReference(ref->GetSymbol(), GetSymbol());
 }
 
 CTacAddr* CAstArrayDesignator::ToTac(CCodeBlock *cb,
