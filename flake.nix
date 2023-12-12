@@ -9,46 +9,54 @@
       let pkgs = nixpkgs.legacyPackages.${system}; in
       {
         devShells.default = pkgs.mkShell {
-          inputsFrom = [ self.packages.${system}.default ];
+          inputsFrom = with self.packages.${system}; [ default reports ];
           nativeBuildInputs = with pkgs; [ man-pages valgrind ];
           hardeningDisable = [ "all" ];
         };
 
-        packages.default = pkgs.stdenv.mkDerivation {
-          name = "snuplc";
-          src = ./snuplc;
-          nativeBuildInputs = with pkgs; [ doxygen graphviz ];
+        packages = {
+          default = pkgs.stdenv.mkDerivation {
+            name = "snuplc";
+            src = ./snuplc;
 
-          outputs = [ "out" "doc" ];
-          buildFlags = [ "all" "doc" ];
+            enableParallelBuilding = true;
 
-          enableParallelBuilding = true;
+            installPhase = ''
+              runHook preInstall
+              install -Dm755 snuplc $out/bin/snuplc
+              install -Dm644 -t $out/bin/rte/x86-64/ rte/x86-64/*.o
+              runHook postInstall
+            '';
 
-          installPhase = ''
-            runHook preInstall
-            install -Dm755 snuplc $out/bin/snuplc
-            mkdir -p $doc
-            cp -r doc/html $doc/html
-            runHook postInstall
-          '';
+            hardeningDisable = [ "all" ];
+          };
 
-          hardeningDisable = [ "all" ];
+          reports = pkgs.stdenvNoCC.mkDerivation {
+            name = "snuplc-reports";
+            src = ./reports;
 
-          meta.mainProgram = "test_scanner";
-        };
+            nativeBuildInputs = with pkgs; [ pandoc texliveMedium ];
 
-        packages.ref = pkgs.gcc13Stdenv.mkDerivation {
-          name = "snuplc-ref";
-          src = ./snuplc/reference;
+            installPhase = ''
+              runHook preInstall
+              install -Dm644 -t $out *.pdf
+              runHook postInstall
+            '';
+          };
 
-          nativeBuildInputs = with pkgs; [ autoPatchelfHook ];
-          buildInputs = with pkgs; [ gcc13Stdenv.cc.cc.lib ];
+          ref = pkgs.gcc13Stdenv.mkDerivation {
+            name = "snuplc-ref";
+            src = ./snuplc/reference;
 
-          installPhase = ''
-            runHook preInstall
-            install -Dm755 -t $out/bin/ test_* snuplc
-            runHook postInstall
-          '';
+            nativeBuildInputs = with pkgs; [ autoPatchelfHook ];
+            buildInputs = with pkgs; [ gcc13Stdenv.cc.cc.lib ];
+
+            installPhase = ''
+              runHook preInstall
+              install -Dm755 -t $out/bin/ snuplc
+              runHook postInstall
+            '';
+          };
         };
       }
     );

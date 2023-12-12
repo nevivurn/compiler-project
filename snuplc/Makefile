@@ -48,7 +48,11 @@ DOXYFILE=doc/Doxyfile
 #
 .PHONY: doc clean mrproper
 
-all: snuplc
+all: snuplc rte
+
+.PHONY: rte
+rte:
+	$(MAKE) -C rte/x86-64
 
 reallyall: test_scanner test_parser test_semanal test_ir snuplc
 
@@ -84,6 +88,7 @@ doc:
 
 clean:
 	rm -rf $(OBJ_DIR) $(DEP_DIR)
+	$(MAKE) -C rte/x86-64 clean
 
 mrproper: clean
 	rm -rf doc/html test_scanner test_parser test_semanal test_ir snuplc
